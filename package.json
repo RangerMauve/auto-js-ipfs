@@ -1,0 +1,28 @@
+{
+  "name": "auto-js-ipfs",
+  "version": "1.0.0",
+  "description": "Automatically get some IPFS download/upload/pinning functionality based on your environment.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node test.js",
+    "lint": "standard --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RangerMauve/auto-js-ipfs.git"
+  },
+  "author": "rangermauve <ranger@mauve.moe> (https://mauve.moe/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RangerMauve/auto-js-ipfs/issues"
+  },
+  "homepage": "https://github.com/RangerMauve/auto-js-ipfs#readme",
+  "devDependencies": {
+    "go-ipfs": "^0.14.0",
+    "ipfs-http-client": "^57.0.3",
+    "ipfsd-ctl": "^12.0.0",
+    "standard": "^17.0.0",
+    "tape": "^5.6.0"
+  }
+}
