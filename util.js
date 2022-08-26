@@ -2,14 +2,16 @@
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
 
 export function parseIPFSURL (url) {
-  const { hostname, scheme, pathname } = new URL(url)
+  const { hostname, protocol, pathname } = new URL(url)
+
+  const type = protocol.slice(0, -1)
 
   if (!hostname) {
     const [cid, ...segments] = pathname.slice(2).split('/')
     const path = '/' + segments.join('/')
-    return { type: scheme, cid, path }
+    return { type, cid, path }
   }
-  return { type: scheme, cid: hostname, path: pathname }
+  return { type, cid: hostname, path: pathname }
 }
 
 // Might not convert if it's a plain string
@@ -25,6 +27,13 @@ export async function autoBlob (content) {
   } else {
     return new Blob([content])
   }
+}
+
+export async function autoStream (content) {
+  if (isStream(content)) return content
+  if (isIterator(content)) return iteratorToStream(content)
+  // Probably a string or something
+  return content
 }
 
 export async function streamToBlob (stream) {
@@ -45,15 +54,19 @@ export async function * streamToIterator (stream) {
   }
 }
 
-export function iteratorToStream (iterator) {
+export function iteratorToStream (iterable) {
+  let iterator = iterable
+  if (!iterator.next) {
+    iterator = iterable[Symbol.asyncIterator]()
+  }
   return new ReadableStream({
     async pull (controller) {
       const { value, done } = await iterator.next()
 
       if (done) {
-        controller.close()
+        await controller.close()
       } else {
-        controller.enqueue(value)
+        await controller.enqueue(value)
       }
     }
   })
@@ -74,10 +87,7 @@ export async function postRawBody (url, fileIterator) {
 
   addAuthorizationHeader(url, headers)
 
-  let body = fileIterator
-  if (isIterator(body) && !isStream(body)) {
-    body = iteratorToStream(body)
-  }
+  const body = await autoStream(fileIterator)
 
   const response = await fetch(url, {
     method: 'POST',
