@@ -100,7 +100,7 @@ export async function postRawBody (url, fileIterator) {
   return response
 }
 
-export async function postFormFile (url, fileIterator, fileName = '') {
+export async function postFormFile (url, fileIterator, fileName = '', parameterName = 'file', fetch = globalThis.fetch) {
   const body = new FormData()
   const headers = new Headers()
 
@@ -109,9 +109,9 @@ export async function postFormFile (url, fileIterator, fileName = '') {
   const content = await autoBlob(fileIterator)
 
   if (fileName) {
-    body.append('file', content, fileName)
+    body.append(parameterName, content, fileName)
   } else {
-    body.append('file', content)
+    body.append(parameterName, content)
   }
 
   const response = await fetch(url, {

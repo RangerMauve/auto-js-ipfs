@@ -25,7 +25,7 @@ export class API {
     throw new Error('Not Implemented')
   }
 
-  async uploadFile (carFileIterator) {
+  async uploadFile (carFileIterator, fileName) {
     throw new Error('Not Implemented')
   }
 }
@@ -45,7 +45,7 @@ export class Pins {
 }
 
 export class EstuaryAPI extends API {
- constructor (authorization, url = ESTUARY_URL, gatewayURL = W3S_LINK_URL) {
+  constructor (authorization, url = ESTUARY_URL, gatewayURL = W3S_LINK_URL) {
     super()
     this.authorization = authorization
     this.url = url
@@ -53,15 +53,22 @@ export class EstuaryAPI extends API {
   }
 
   async * get (url, { start, end } = {}) {
-    throw new Error('Not Implemented')
+    yield * getFromGateway(url, { start, end }, this.gatewayURL)
   }
 
   async uploadCAR (carFileIterator) {
     throw new Error('Not Implemented')
   }
 
-  async uploadFile (carFileIterator) {
-    throw new Error('Not Implemented')
+  async uploadFile (fileIterator, fileName) {
+    const toFetch = new URL('/content/add', this.url)
+    toFetch.password = this.authorization
+
+    const response = await postFormFile(toFetch, fileIterator, fileName, 'data')
+
+    const { cid } = await response.json()
+
+    return `ipfs://${cid}/`
   }
 }
 
@@ -93,8 +100,8 @@ export class AgregoreAPI extends API {
     return results.split('\n')
   }
 
-  async uploadFile (carFileIterator) {
-    const body = await autoStream(carFileIterator)
+  async uploadFile (fileIterator) {
+    const body = await autoStream(fileIterator)
     const response = await this.fetch('ipfs://localhost', {
       method: 'POST',
       headers: {
@@ -176,7 +183,7 @@ export class DaemonAPI extends API {
   }
 
   async uploadCAR (carFileIterator) {
-    const relative = '/api/v0/dag/import?allow-big-block=true'
+    const relative = '/api/v0/dag/import?allow-big-block=true&pin-roots=true'
     const toFetch = new URL(relative, this.url)
 
     const response = await postFormFile(toFetch, carFileIterator)
