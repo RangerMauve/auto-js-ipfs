@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>Auto-IPFS Example</title>
+<style>
+  body {
+    margin: 0.5em;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+    margin: 0.5em 0px;
+    padding: 0px;
+  }
+
+  form input {
+    flex: 1;
+  }
+  auto-ipfs-upload label {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid black;
+    padding: 2em;
+    align-items: center;
+    justify-content: middle;
+  }
+  auto-ipfs-upload input {
+    display: none;
+  }
+  auto-ipfs-upload {
+    display: block;
+    margin: 0.5em 0px;
+  }
+</style>
+<h1>Auto-IPFS Upload</h1>
+<auto-ipfs-upload></auto-ipfs-upload>
+<p>
+  <a href="https://github.com/RangerMauve/auto-js-ipfs">Auto-JS-IPFS</a> chooses from the <b>"best"</b> method available to upload your files to IPFS.
+  It auto-detects when you're running in a browser that has native support for IPFS like  <a href="https://agregore.mauve.moe/">Agregore</a>,
+   when you have an available <a href="https://docs.ipfs.tech/reference/kubo/rpc/">Kubo daemon</a>,
+   when you're running in <a href="https://brave.com/ipfs-support/">Brave</a>,
+   and can fall back to using <a href="https://web3.storage/">Web3.storage</a> or <a href="https://estuary.tech/">Estuary</a> for when local options don't work.
+</p>
+<auto-ipfs-options></auto-ipfs-options>
+<script type="module">
+import "./example.js"
+
+const options = document.querySelector('auto-ipfs-options')
+const upload = document.querySelector('auto-ipfs-upload')
+
+options.addEventListener('selected', ({detail}) => {
+  const selected = detail
+  console.log('Options changed', selected)
+  upload.setAttribute('selected', selected)
+})
+</script>

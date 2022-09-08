@@ -15,6 +15,12 @@ export const W3S_LINK_URL = 'https://w3s.link/'
 export const WEB3_STORAGE_URL = 'https://api.web3.storage/'
 export const ESTUARY_URL = 'https://api.estuary.tech/'
 export const DEFAULT_DAEMON_API_URL = 'http://localhost:9090/'
+export const DEFAULT_TIMEOUT = 1000
+export const AGREGORE_TYPE = 'agregore'
+export const DAEMON_TYPE = 'daemon'
+export const WEB3_STORAGE_TYPE = 'web3.storage'
+export const ESTUARY_TYPE = 'estuary'
+export const CHOOSE_ORDER = [AGREGORE_TYPE, DAEMON_TYPE, WEB3_STORAGE_TYPE, ESTUARY_TYPE]
 
 export class API {
   async * get (url, { start, end } = {}) {
@@ -42,6 +48,93 @@ export class Pins {
   async remove (id) {
     throw new Error('Not Implemented')
   }
+}
+
+export async function detect ({
+  daemonURL = DEFAULT_DAEMON_API_URL,
+  web3StorageToken,
+  web3StorageURL = WEB3_STORAGE_URL,
+  estuaryToken,
+  estuaryURL = ESTUARY_URL,
+  publicGatewayURL = W3S_LINK_URL,
+  timeout = DEFAULT_TIMEOUT,
+  fetch = globalThis.fetch
+} = {}) {
+  const options = []
+
+  const toAttempt = []
+
+  toAttempt.push(
+    detectAgregoreFetch(fetch)
+      .then(detected => detected && options.push({ type: AGREGORE_TYPE, fetch }))
+  )
+
+  toAttempt.push(
+    detectBraveDaemon(fetch)
+      .then(detected => detected && options.push({ type: DAEMON_TYPE, url: detected, fetch }))
+  )
+
+  if (daemonURL) {
+    toAttempt.push(
+      detectDaemon(daemonURL, timeout, fetch)
+        .then(detected => detected && options.push({ type: DAEMON_TYPE, url: daemonURL, fetch }))
+    )
+  }
+
+  if (estuaryToken) {
+    const url = estuaryURL
+    const authorization = estuaryToken
+    options.push({ type: ESTUARY_TYPE, url, authorization, fetch, publicGatewayURL })
+  }
+
+  if (web3StorageToken) {
+    const url = web3StorageURL
+    const authorization = web3StorageToken
+    options.push({ type: WEB3_STORAGE_TYPE, url, authorization, fetch, publicGatewayURL })
+  }
+
+  await Promise.allSettled(toAttempt)
+
+  return options
+}
+
+export async function create ({ chooseOrder = CHOOSE_ORDER, ...opts } = {}) {
+  const options = await detect(opts)
+
+  const chosen = defaultChoice(options, chooseOrder)
+
+  return choose(chosen)
+}
+
+export function defaultChoice (options, chooseOrder = CHOOSE_ORDER) {
+  const sorted = options
+    .filter(({ type }) => chooseOrder.includes(type))
+    .sort(({ type: type1 }, { type: type2 }) => chooseOrder.indexOf(type1) - chooseOrder.indexOf(type2))
+
+  const chosen = sorted[0]
+  if (!chosen) throw new Error('Unable to find valid type')
+
+  return chosen
+}
+
+export async function choose (option) {
+  const { type } = option
+  let api = null
+  if (type === AGREGORE_TYPE) {
+    api = new AgregoreAPI(option.fetch || globalThis.fetch)
+  } else if (type === DAEMON_TYPE) {
+    api = new DaemonAPI(option.url)
+  } else if (type === WEB3_STORAGE_TYPE) {
+    api = new Web3StorageAPI(option.authorization, option.url, option.publicGatewayURL)
+  } else if (type === ESTUARY_TYPE) {
+    api = new EstuaryAPI(option.authorization, option.url, option.publicGatewayURL)
+  } else {
+    throw new TypeError(`Unknown API type: ${type}.`)
+  }
+
+  const pins = new Pins()
+
+  return { api, pins }
 }
 
 export class EstuaryAPI extends API {
@@ -85,7 +178,8 @@ export class AgregoreAPI extends API {
   async uploadCAR (carFileIterator) {
     // convert to stream if iterator
     const body = await autoStream(carFileIterator)
-    const response = await this.fetch('ipfs://localhost', {
+    const { fetch } = this
+    const response = await fetch('ipfs://localhost', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/vnd.ipld.car'
@@ -102,7 +196,8 @@ export class AgregoreAPI extends API {
 
   async uploadFile (fileIterator) {
     const body = await autoStream(fileIterator)
-    const response = await this.fetch('ipfs://localhost', {
+    const { fetch } = this
+    const response = await fetch('ipfs://localhost', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/octet-stream'
@@ -268,17 +363,19 @@ function interceptWebRequests (apiURL) {
   )
 }
 
-export async function detectAgregoreFetch () {
+export async function detectAgregoreFetch (fetch = globalThis.fetch) {
   try {
     // Should throw error if IPFS is not supported
     // Also throws an error in brave even with IPFS support
-    await fetch('ipfs://localhost')
-  } catch {
+    await fetch('ipfs://localhost/')
+    return true
+  } catch (e) {
+    console.error('Unable to detect Agregore', e)
     return false
   }
 }
 
-export async function detectDaemon (url, timeout = 1000) {
+export async function detectDaemon (url, timeout = 1000, fetch = globalThis.fetch) {
   try {
     const controller = new AbortController()
     const { signal } = controller
@@ -289,7 +386,8 @@ export async function detectDaemon (url, timeout = 1000) {
     if (response.ok) return true
     if (response.status === 405) return true
     return false
-  } catch {
+  } catch (e) {
+    console.error('Unable to detect Kubo Daemon', e, url)
     return false
   }
 }

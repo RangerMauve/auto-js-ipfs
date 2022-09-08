@@ -32,6 +32,10 @@ export async function autoBlob (content) {
 export async function autoStream (content) {
   if (isStream(content)) return content
   if (isIterator(content)) return iteratorToStream(content)
+  /* if (typeof content.stream === 'function') {
+    // Probably a Blob or a File
+    return content.stream()
+  } */
   // Probably a string or something
   return content
 }
