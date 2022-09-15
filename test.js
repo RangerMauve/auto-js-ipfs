@@ -43,7 +43,10 @@ test('Upload file to Agregore', async (t) => {
     for (const data of EXAMPLE_FORMATS()) {
       const url = await api.uploadFile(data, 'example.txt')
 
-      t.pass('Able to upload file')
+      t.ok(url, 'Able to upload file')
+
+      const size = await api.getSize(url)
+      t.equal(size, EXAMPLE_DATA.length, 'Able to read size accurately')
 
       const loaded = await collect(api.get(url))
 
@@ -83,6 +86,9 @@ test('Upload file to web3.storage', async (t) => {
 
     t.pass('Able to upload file')
 
+    const size = await api.getSize(url)
+    t.equal(size, EXAMPLE_DATA.length, 'Able to read size accurately')
+
     const loaded = await collect(api.get(url))
 
     t.deepEqual(loaded.toString('utf8'), EXAMPLE_DATA, 'Got expected data from uploaded URL')
@@ -108,6 +114,9 @@ test.skip('Upload file to estuary', async (t) => {
 
     t.pass('Able to upload file')
 
+    const size = await api.getSize(url)
+    t.equal(size, EXAMPLE_DATA.length, 'Able to read size accurately')
+
     const loaded = await collect(api.get(url))
 
     t.deepEqual(loaded.toString('utf8'), EXAMPLE_DATA, 'Got expected data from uploaded URL')
@@ -123,6 +132,9 @@ test('Upload file to Kubo daemon', async (t) => {
       const url = await api.uploadFile(data, 'example.txt')
 
       t.pass('Able to upload file')
+
+      const size = await api.getSize(url)
+      t.equal(size, EXAMPLE_DATA.length, 'Able to read size accurately')
 
       const loaded = await collect(api.get(url))
 

@@ -27,6 +27,10 @@ export class API {
     throw new Error('Not Implemented')
   }
 
+  async getSize (url) {
+    throw new Error('Not Implemented')
+  }
+
   async uploadCAR (carFileIterator) {
     throw new Error('Not Implemented')
   }
@@ -50,13 +54,34 @@ export class Pins {
   }
 }
 
+export function detectDefaultGateway () {
+  if (!globalThis.location) return W3S_LINK_URL
+  const { pathname, hostname, protocol } = globalThis.location
+  const isOnGatewayPath = pathname.startsWith('/ipfs/') || pathname.startsWith('/ipns/')
+
+  if (isOnGatewayPath) {
+    return `${protocol}//${hostname}/`
+  }
+
+  const [subdomain, ...segments] = hostname.split('.')
+
+  // If the first subdomain is about the length of a CID it's probably a gateway?
+  const isGatewaySubdomain = subdomain.length === 59 && segments.length >= 2
+
+  if (isGatewaySubdomain) {
+    return `${protocol}//${segments.join('.')}/`
+  }
+
+  return W3S_LINK_URL
+}
+
 export async function detect ({
   daemonURL = DEFAULT_DAEMON_API_URL,
   web3StorageToken,
   web3StorageURL = WEB3_STORAGE_URL,
   estuaryToken,
   estuaryURL = ESTUARY_URL,
-  publicGatewayURL = W3S_LINK_URL,
+  publicGatewayURL = detectDefaultGateway(),
   timeout = DEFAULT_TIMEOUT,
   fetch = globalThis.fetch
 } = {}) {
@@ -137,16 +162,31 @@ export async function choose (option) {
   return { api, pins }
 }
 
-export class EstuaryAPI extends API {
-  constructor (authorization, url = ESTUARY_URL, gatewayURL = W3S_LINK_URL) {
+export class ReadonlyGatewayAPI extends API {
+  constructor (gatewayURL = detectDefaultGateway()) {
     super()
-    this.authorization = authorization
-    this.url = url
     this.gatewayURL = gatewayURL
   }
 
   async * get (url, { start, end } = {}) {
     yield * getFromGateway(url, { start, end }, this.gatewayURL)
+  }
+
+  async getSize (url) {
+    const { cid, path, type } = parseIPFSURL(url)
+
+    const relative = `/${type}/${cid}${path}`
+    const toFetch = new URL(relative, this.gatewayURL)
+
+    return getSizeFromURL(toFetch, globalThis.fetch)
+  }
+}
+
+export class EstuaryAPI extends ReadonlyGatewayAPI {
+  constructor (authorization, url = ESTUARY_URL, gatewayURL = detectDefaultGateway()) {
+    super(gatewayURL)
+    this.authorization = authorization
+    this.url = url
   }
 
   async uploadCAR (carFileIterator) {
@@ -173,6 +213,10 @@ export class AgregoreAPI extends API {
 
   async * get (url, { start, end } = {}) {
     yield * getFromURL(url, { start, end }, this.fetch)
+  }
+
+  async getSize (url) {
+    return getSizeFromURL(url, this.fetch)
   }
 
   async uploadCAR (carFileIterator) {
@@ -211,16 +255,11 @@ export class AgregoreAPI extends API {
   }
 }
 
-export class Web3StorageAPI extends API {
-  constructor (authorization, url = WEB3_STORAGE_URL, gatewayURL = W3S_LINK_URL) {
-    super()
+export class Web3StorageAPI extends ReadonlyGatewayAPI {
+  constructor (authorization, url = WEB3_STORAGE_URL, gatewayURL = detectDefaultGateway()) {
+    super(gatewayURL)
     this.authorization = authorization
     this.url = url
-    this.gatewayURL = gatewayURL
-  }
-
-  async * get (url, { start, end } = {}) {
-    yield * getFromGateway(url, { start, end }, this.gatewayURL)
   }
 
   async uploadCAR (carFileIterator) {
@@ -277,6 +316,24 @@ export class DaemonAPI extends API {
     yield * streamToIterator(response.body)
   }
 
+  async getSize (url) {
+    const { cid, path, type } = parseIPFSURL(url)
+    const relative = `/api/v0/file/ls?arg=/${type}/${cid}${path}&size=true`
+    const toFetch = new URL(relative, this.url)
+
+    const response = await fetch(toFetch, {
+      method: 'POST'
+    })
+
+    await checkError(response)
+
+    const { Objects } = await response.json()
+
+    const [{ Size }] = Object.values(Objects)
+
+    return Size
+  }
+
   async uploadCAR (carFileIterator) {
     const relative = '/api/v0/dag/import?allow-big-block=true&pin-roots=true'
     const toFetch = new URL(relative, this.url)
@@ -294,7 +351,7 @@ export class DaemonAPI extends API {
   }
 
   async uploadFile (fileIterator, fileName = '') {
-    const relative = '/api/v0/add?cid-version=1&inline=true&raw-leaves=true'
+    const relative = '/api/v0/add?cid-version=1&inline=false&raw-leaves=false'
     const toFetch = new URL(relative, this.url)
 
     const isFile = fileIterator.name && fileIterator instanceof Blob
@@ -392,7 +449,7 @@ export async function detectDaemon (url, timeout = 1000, fetch = globalThis.fetc
   }
 }
 
-export async function * getFromGateway (ipfsURL, { start, end } = {}, gatewayURL = W3S_LINK_URL) {
+export async function * getFromGateway (ipfsURL, { start, end } = {}, gatewayURL = detectDefaultGateway()) {
   const { cid, path, type } = parseIPFSURL(ipfsURL)
 
   const relative = `/${type}/${cid}${path}`
@@ -418,4 +475,16 @@ export async function * getFromURL (url, { start, end } = {}, fetch = globalThis
   await checkError(response)
 
   yield * streamToIterator(response.body)
+}
+
+export async function getSizeFromURL (url, fetch = globalThis.fetch) {
+  const response = await fetch(url, {
+    method: 'HEAD'
+  })
+
+  await checkError(response)
+
+  const lengthHeader = response.headers.get('Content-Length')
+
+  return parseInt(lengthHeader, 10)
 }
