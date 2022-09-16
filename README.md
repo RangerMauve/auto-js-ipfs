@@ -51,14 +51,18 @@ Initialize the API based on the choice selected from `detect()`
 
 Create an API instance by auto-detecting the "best" option available.
 
-### `api.get(url, {start, end}) => AsyncIterator<ArrayBuffer>`
+### `api.get(url, {start, end, signal}) => AsyncIterator<ArrayBuffer>`
 
 Get data from an `ipfs://` URL, can optionally chose a start and end offset for loading data.
 
-### `api.uploadCar(carFileAsyncIterator) => Promise<[url]>`
+### `api.getSize(url, signal) => Promise<Number>`
+
+Get info about the size of a file at a URL.
+
+### `api.uploadCar(carFileAsyncIterator, signal) => Promise<[url]>`
 
 Upload a CAR file. Returns an array of root `ipfs://` URLs
 
-### `api.uploadFile(fileAsyncIterator, fileName?) => Promise<url>`
+### `api.uploadFile(fileAsyncIterator, fileName?, signal) => Promise<url>`
 
 Upload a file to the backend and get back a URL. Optionally specify a file name so that it will be wrapped in a folder.
