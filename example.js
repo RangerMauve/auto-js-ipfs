@@ -46,7 +46,9 @@ export class AutoIPFSOptions extends HTMLElement {
   get opts () {
     const data = new FormData(this.form)
 
-    const opts = {}
+    const opts = {
+      readonly: false
+    }
 
     for (const [key, value] of data.entries()) {
       if (!value) continue
