@@ -1,17 +1,26 @@
-/* global Headers, fetch, Blob */
+/* global fetch, Blob */
 import {
   parseIPFSURL,
   checkError,
 
+  detectDefaultGateway,
+
   postFormFile,
   postRawBody,
-  autoStream,
+  getFromGateway,
+  getFromURL,
+  getSizeFromURL,
 
+  autoStream,
   streamToIterator
 } from './util.js'
 
+export {
+  detectDefaultGateway,
+  W3S_LINK_URL
+} from './util.js'
+
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
-export const W3S_LINK_URL = 'https://w3s.link/'
 export const WEB3_STORAGE_URL = 'https://api.web3.storage/'
 export const ESTUARY_URL = 'https://api.estuary.tech/'
 export const DEFAULT_DAEMON_API_URL = 'http://localhost:9090/'
@@ -23,19 +32,19 @@ export const ESTUARY_TYPE = 'estuary'
 export const CHOOSE_ORDER = [AGREGORE_TYPE, DAEMON_TYPE, WEB3_STORAGE_TYPE, ESTUARY_TYPE]
 
 export class API {
-  async * get (url, { start, end } = {}) {
+  async * get (url, { start, end, signal = null } = {}) {
     throw new Error('Not Implemented')
   }
 
-  async getSize (url) {
+  async getSize (url, signal = null) {
     throw new Error('Not Implemented')
   }
 
-  async uploadCAR (carFileIterator) {
+  async uploadCAR (carFileIterator, signal = null) {
     throw new Error('Not Implemented')
   }
 
-  async uploadFile (carFileIterator, fileName) {
+  async uploadFile (carFileIterator, fileName, signal = null) {
     throw new Error('Not Implemented')
   }
 }
@@ -52,27 +61,6 @@ export class Pins {
   async remove (id) {
     throw new Error('Not Implemented')
   }
-}
-
-export function detectDefaultGateway () {
-  if (!globalThis.location) return W3S_LINK_URL
-  const { pathname, hostname, protocol } = globalThis.location
-  const isOnGatewayPath = pathname.startsWith('/ipfs/') || pathname.startsWith('/ipns/')
-
-  if (isOnGatewayPath) {
-    return `${protocol}//${hostname}/`
-  }
-
-  const [subdomain, ...segments] = hostname.split('.')
-
-  // If the first subdomain is about the length of a CID it's probably a gateway?
-  const isGatewaySubdomain = subdomain.length === 59 && segments.length >= 2
-
-  if (isGatewaySubdomain) {
-    return `${protocol}//${segments.join('.')}/`
-  }
-
-  return W3S_LINK_URL
 }
 
 export async function detect ({
@@ -168,17 +156,26 @@ export class ReadonlyGatewayAPI extends API {
     this.gatewayURL = gatewayURL
   }
 
-  async * get (url, { start, end } = {}) {
-    yield * getFromGateway(url, { start, end }, this.gatewayURL)
+  async * get (url, { start, end, signal = null } = {}) {
+    yield * getFromGateway({
+      url,
+      start,
+      end,
+      gatewayURL: this.gatewayURL,
+      signal
+    })
   }
 
-  async getSize (url) {
+  async getSize (url, signal = null) {
     const { cid, path, type } = parseIPFSURL(url)
 
     const relative = `/${type}/${cid}${path}`
     const toFetch = new URL(relative, this.gatewayURL)
 
-    return getSizeFromURL(toFetch, globalThis.fetch)
+    return getSizeFromURL({
+      url: toFetch,
+      signal
+    })
   }
 }
 
@@ -189,15 +186,21 @@ export class EstuaryAPI extends ReadonlyGatewayAPI {
     this.url = url
   }
 
-  async uploadCAR (carFileIterator) {
+  async uploadCAR (carFileIterator, signal = null) {
     throw new Error('Not Implemented')
   }
 
-  async uploadFile (fileIterator, fileName) {
+  async uploadFile (fileIterator, fileName, signal = null) {
     const toFetch = new URL('/content/add', this.url)
     toFetch.password = this.authorization
 
-    const response = await postFormFile(toFetch, fileIterator, fileName, 'data')
+    const response = await postFormFile({
+      url: toFetch,
+      file: fileIterator,
+      fileName,
+      parameterName: 'data',
+      signal
+    })
 
     const { cid } = await response.json()
 
@@ -211,15 +214,27 @@ export class AgregoreAPI extends API {
     this.fetch = fetch
   }
 
-  async * get (url, { start, end } = {}) {
-    yield * getFromURL(url, { start, end }, this.fetch)
+  async * get (url, { start, end, signal = null } = {}) {
+    const { fetch } = this
+    yield * getFromURL({
+      url,
+      start,
+      end,
+      fetch,
+      signal
+    })
   }
 
-  async getSize (url) {
-    return getSizeFromURL(url, this.fetch)
+  async getSize (url, signal = null) {
+    const { fetch } = this
+    return getSizeFromURL({
+      url,
+      fetch,
+      signal
+    })
   }
 
-  async uploadCAR (carFileIterator) {
+  async uploadCAR (carFileIterator, signal = null) {
     // convert to stream if iterator
     const body = await autoStream(carFileIterator)
     const { fetch } = this
@@ -228,6 +243,7 @@ export class AgregoreAPI extends API {
       headers: {
         'Content-Type': 'application/vnd.ipld.car'
       },
+      signal,
       body
     })
 
@@ -238,7 +254,7 @@ export class AgregoreAPI extends API {
     return results.split('\n')
   }
 
-  async uploadFile (fileIterator) {
+  async uploadFile (fileIterator, signal = null) {
     const body = await autoStream(fileIterator)
     const { fetch } = this
     const response = await fetch('ipfs://localhost', {
@@ -246,6 +262,7 @@ export class AgregoreAPI extends API {
       headers: {
         'Content-Type': 'application/octet-stream'
       },
+      signal,
       body
     })
 
@@ -262,11 +279,15 @@ export class Web3StorageAPI extends ReadonlyGatewayAPI {
     this.url = url
   }
 
-  async uploadCAR (carFileIterator) {
+  async uploadCAR (carFileIterator, signal = null) {
     const toFetch = new URL('/car', this.url)
     toFetch.password = this.authorization
 
-    const response = await postRawBody(toFetch, carFileIterator)
+    const response = await postRawBody({
+      url: toFetch,
+      fileIterator: carFileIterator,
+      signal
+    })
 
     const contents = await response.text()
     const items = contents.split('\n')
@@ -277,11 +298,16 @@ export class Web3StorageAPI extends ReadonlyGatewayAPI {
     })
   }
 
-  async uploadFile (fileIterator, fileName = '') {
+  async uploadFile (fileIterator, { fileName = '', signal = null } = {}) {
     const toFetch = new URL('/upload', this.url)
     toFetch.password = this.authorization
 
-    const response = await postFormFile(toFetch, fileIterator, fileName)
+    const response = await postFormFile({
+      url: toFetch,
+      file: fileIterator,
+      fileName,
+      signal
+    })
 
     const { cid } = await response.json()
 
@@ -295,7 +321,7 @@ export class DaemonAPI extends API {
     this.url = url
   }
 
-  async * get (url, { start, end } = {}) {
+  async * get (url, { start, end, signal = null } = {}) {
     const { cid, path, type } = parseIPFSURL(url)
     const relative = `/api/v0/cat?arg=/${type}/${cid}${path}`
     const toFetch = new URL(relative, this.url)
@@ -308,7 +334,8 @@ export class DaemonAPI extends API {
     }
 
     const response = await fetch(toFetch, {
-      method: 'POST'
+      method: 'POST',
+      signal
     })
 
     await checkError(response)
@@ -316,13 +343,14 @@ export class DaemonAPI extends API {
     yield * streamToIterator(response.body)
   }
 
-  async getSize (url) {
+  async getSize (url, signal = null) {
     const { cid, path, type } = parseIPFSURL(url)
     const relative = `/api/v0/file/ls?arg=/${type}/${cid}${path}&size=true`
     const toFetch = new URL(relative, this.url)
 
     const response = await fetch(toFetch, {
-      method: 'POST'
+      method: 'POST',
+      signal
     })
 
     await checkError(response)
@@ -334,11 +362,15 @@ export class DaemonAPI extends API {
     return Size
   }
 
-  async uploadCAR (carFileIterator) {
+  async uploadCAR (carFileIterator, signal = null) {
     const relative = '/api/v0/dag/import?allow-big-block=true&pin-roots=true'
     const toFetch = new URL(relative, this.url)
 
-    const response = await postFormFile(toFetch, carFileIterator)
+    const response = await postFormFile({
+      url: toFetch,
+      file: carFileIterator,
+      signal
+    })
 
     const contents = await response.text()
     const items = contents.split('\n')
@@ -350,7 +382,7 @@ export class DaemonAPI extends API {
     })
   }
 
-  async uploadFile (fileIterator, fileName = '') {
+  async uploadFile (fileIterator, fileName = '', signal = null) {
     const relative = '/api/v0/add?cid-version=1&inline=false&raw-leaves=false'
     const toFetch = new URL(relative, this.url)
 
@@ -360,7 +392,12 @@ export class DaemonAPI extends API {
       toFetch.searchParams.set('wrap-with-directory', 'true')
     }
 
-    const response = await postFormFile(toFetch, fileIterator, fileName)
+    const response = await postFormFile({
+      url: toFetch,
+      file: fileIterator,
+      fileName,
+      signal
+    })
 
     const contents = await response.text()
     const [line] = contents.split('\n')
@@ -447,44 +484,4 @@ export async function detectDaemon (url, timeout = 1000, fetch = globalThis.fetc
     console.error('Unable to detect Kubo Daemon', e, url)
     return false
   }
-}
-
-export async function * getFromGateway (ipfsURL, { start, end } = {}, gatewayURL = detectDefaultGateway()) {
-  const { cid, path, type } = parseIPFSURL(ipfsURL)
-
-  const relative = `/${type}/${cid}${path}`
-  const toFetch = new URL(relative, gatewayURL)
-
-  yield * getFromURL(toFetch, { start, end })
-}
-
-export async function * getFromURL (url, { start, end } = {}, fetch = globalThis.fetch) {
-  const headers = new Headers()
-  if (Number.isInteger(start)) {
-    if (Number.isInteger(end)) {
-      headers.set('Range', `bytes=${start}-${end}`)
-    } else {
-      headers.set('Range', `bytes=${start}-`)
-    }
-  }
-
-  const response = await fetch(url, {
-    headers
-  })
-
-  await checkError(response)
-
-  yield * streamToIterator(response.body)
-}
-
-export async function getSizeFromURL (url, fetch = globalThis.fetch) {
-  const response = await fetch(url, {
-    method: 'HEAD'
-  })
-
-  await checkError(response)
-
-  const lengthHeader = response.headers.get('Content-Length')
-
-  return parseInt(lengthHeader, 10)
 }

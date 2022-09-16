@@ -1,5 +1,7 @@
 /* global Response, ReadableStream, FormData, Headers, Blob */
+
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
+export const W3S_LINK_URL = 'https://w3s.link/'
 
 export function parseIPFSURL (url) {
   const { hostname, protocol, pathname } = new URL(url)
@@ -84,7 +86,11 @@ export async function checkError (response) {
   }
 }
 
-export async function postRawBody (url, fileIterator) {
+export async function postRawBody ({
+  url,
+  fileIterator,
+  signal
+}) {
   const headers = new Headers()
 
   headers.set('Content-Type', 'application/octet-stream')
@@ -95,6 +101,7 @@ export async function postRawBody (url, fileIterator) {
 
   const response = await fetch(url, {
     method: 'POST',
+    signal,
     body,
     headers
   })
@@ -104,13 +111,20 @@ export async function postRawBody (url, fileIterator) {
   return response
 }
 
-export async function postFormFile (url, fileIterator, fileName = '', parameterName = 'file', fetch = globalThis.fetch) {
+export async function postFormFile ({
+  url,
+  file,
+  fileName = '',
+  parameterName = 'file',
+  fetch = globalThis.fetch,
+  signal
+}) {
   const body = new FormData()
   const headers = new Headers()
 
   addAuthorizationHeader(url, headers)
 
-  const content = await autoBlob(fileIterator)
+  const content = await autoBlob(file)
 
   if (fileName) {
     body.append(parameterName, content, fileName)
@@ -121,7 +135,8 @@ export async function postFormFile (url, fileIterator, fileName = '', parameterN
   const response = await fetch(url, {
     method: 'POST',
     body,
-    headers
+    headers,
+    signal
   })
 
   await checkError(response)
@@ -154,4 +169,88 @@ export function addAuthorizationHeader (url, headers) {
       url.password = ''
     }
   }
+}
+
+export async function getSizeFromURL ({
+  url,
+  fetch = globalThis.fetch,
+  signal
+}) {
+  const response = await fetch(url, {
+    method: 'HEAD',
+    signal
+  })
+
+  await checkError(response)
+
+  const lengthHeader = response.headers.get('Content-Length')
+
+  return parseInt(lengthHeader, 10)
+}
+
+export async function * getFromURL ({
+  url,
+  start,
+  end,
+  signal,
+  fetch = globalThis.fetch
+}) {
+  const headers = new Headers()
+  if (Number.isInteger(start)) {
+    if (Number.isInteger(end)) {
+      headers.set('Range', `bytes=${start}-${end}`)
+    } else {
+      headers.set('Range', `bytes=${start}-`)
+    }
+  }
+
+  const response = await fetch(url, {
+    headers,
+    signal
+  })
+
+  await checkError(response)
+
+  yield * streamToIterator(response.body)
+}
+
+export async function * getFromGateway ({
+  url,
+  start,
+  end,
+  signal,
+  gatewayURL = detectDefaultGateway()
+}) {
+  const { cid, path, type } = parseIPFSURL(url)
+
+  const relative = `/${type}/${cid}${path}`
+  const toFetch = new URL(relative, gatewayURL)
+
+  yield * getFromURL({
+    url: toFetch,
+    start,
+    end,
+    signal
+  })
+}
+
+export function detectDefaultGateway () {
+  if (!globalThis.location) return W3S_LINK_URL
+  const { pathname, hostname, protocol } = globalThis.location
+  const isOnGatewayPath = pathname.startsWith('/ipfs/') || pathname.startsWith('/ipns/')
+
+  if (isOnGatewayPath) {
+    return `${protocol}//${hostname}/`
+  }
+
+  const [subdomain, ...segments] = hostname.split('.')
+
+  // If the first subdomain is about the length of a CID it's probably a gateway?
+  const isGatewaySubdomain = subdomain.length === 59 && segments.length >= 2
+
+  if (isGatewaySubdomain) {
+    return `${protocol}//${segments.join('.')}/`
+  }
+
+  return W3S_LINK_URL
 }
