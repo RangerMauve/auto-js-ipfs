@@ -29,7 +29,14 @@ export const AGREGORE_TYPE = 'agregore'
 export const DAEMON_TYPE = 'daemon'
 export const WEB3_STORAGE_TYPE = 'web3.storage'
 export const ESTUARY_TYPE = 'estuary'
-export const CHOOSE_ORDER = [AGREGORE_TYPE, DAEMON_TYPE, WEB3_STORAGE_TYPE, ESTUARY_TYPE]
+export const READONLY_TYPE = 'readonly'
+export const CHOOSE_ORDER = [
+  AGREGORE_TYPE,
+  DAEMON_TYPE,
+  WEB3_STORAGE_TYPE,
+  ESTUARY_TYPE,
+  READONLY_TYPE
+]
 
 export class API {
   async * get (url, { start, end, signal = null } = {}) {
@@ -70,6 +77,7 @@ export async function detect ({
   estuaryToken,
   estuaryURL = ESTUARY_URL,
   publicGatewayURL = detectDefaultGateway(),
+  readonly = true,
   timeout = DEFAULT_TIMEOUT,
   fetch = globalThis.fetch
 } = {}) {
@@ -104,6 +112,10 @@ export async function detect ({
     const url = web3StorageURL
     const authorization = web3StorageToken
     options.push({ type: WEB3_STORAGE_TYPE, url, authorization, fetch, publicGatewayURL })
+  }
+
+  if (readonly && publicGatewayURL) {
+    options.push({ type: READONLY_TYPE, fetch, publicGatewayURL })
   }
 
   await Promise.allSettled(toAttempt)
@@ -141,6 +153,8 @@ export async function choose (option) {
     api = new Web3StorageAPI(option.authorization, option.url, option.publicGatewayURL)
   } else if (type === ESTUARY_TYPE) {
     api = new EstuaryAPI(option.authorization, option.url, option.publicGatewayURL)
+  } else if (type === READONLY_TYPE) {
+    api = new ReadonlyGatewayAPI(option.publicGatewayURL)
   } else {
     throw new TypeError(`Unknown API type: ${type}.`)
   }

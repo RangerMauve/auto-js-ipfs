@@ -8,8 +8,9 @@ Automatically get some IPFS download/upload/pinning functionality based on your 
 - Or Detect a locally running go-ipfs daemon
 	- Either default Kubo RPC port (9090)
 	- Or detect the Brave browser and it's embedded daemon
-- Or use web3.storage
-- Or use estuary
+- Or use web3.storage (if an auth token is provided)
+- Or use estuary (if an auth token is provided)
+- Or use readonly mode (if enabled)
 - Or throw an error
 
 ## API
@@ -31,6 +32,8 @@ All options are optional, and by default just the local node/agregore support wi
 `estuaryURL` is the Estuary API server URL that should be used.
 
 `publicGatewayURL` is the public IPFS gateway to use for loading content without a local node.
+
+`readonly` is an option for whether there should be a fallback to "readonly" mode where only `api.get` and `api.getSize` will be supported. Enabled by default.
 
 ### `async detect(opts) => Promise<[{type, url?}]>`
 
