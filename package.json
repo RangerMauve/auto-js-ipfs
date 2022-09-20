@@ -19,6 +19,7 @@
   "files": [
     "./index.js",
     "./index.cjs",
+    "./util.js",
     "README.md",
     "LICENSE"
   ],
