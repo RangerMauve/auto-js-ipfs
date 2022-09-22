@@ -11,9 +11,9 @@
   },
   "exports": {
     ".": {
-      "default": "./index.js",
       "import": "./index.js",
-      "require": "./index.cjs"
+      "require": "./index.cjs",
+      "default": "./index.js"
     }
   },
   "files": [
