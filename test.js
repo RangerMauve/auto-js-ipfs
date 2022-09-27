@@ -181,20 +181,19 @@ async function initIPFS (port = 6660) {
   const ipfsBin = GoIPFS.path()
 
   const apiPort = port++
-  const gatewayPort = port++
   const swarmPort = port++
   const ipfsOptions = {
     config: {
       Addresses: {
         API: `/ip4/127.0.0.1/tcp/${apiPort}`,
-        Gateway: `/ip4/127.0.0.1/tcp/${gatewayPort}`,
         Swarm: [
           `/ip4/0.0.0.0/tcp/${swarmPort}`,
           `/ip6/::/tcp/${swarmPort}`,
           `/ip4/0.0.0.0/udp/${swarmPort}/quic`,
           `/ip6/::/udp/${swarmPort}/quic`
         ]
-      }
+      },
+      Gateway: null
     }
   }
   const ipfsd = await createController({
@@ -219,5 +218,5 @@ async function initIPFS (port = 6660) {
 
   const daemonURL = `http://127.0.0.1:${apiPort}/`
 
-  return { ipfsd, gatewayPort, apiPort, swarmPort, daemonURL }
+  return { ipfsd, apiPort, swarmPort, daemonURL }
 }

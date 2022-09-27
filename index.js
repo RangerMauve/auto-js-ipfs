@@ -23,7 +23,7 @@ export {
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
 export const WEB3_STORAGE_URL = 'https://api.web3.storage/'
 export const ESTUARY_URL = 'https://api.estuary.tech/'
-export const DEFAULT_DAEMON_API_URL = 'http://localhost:9090/'
+export const DEFAULT_DAEMON_API_URL = 'http://localhost:5001/'
 export const DEFAULT_TIMEOUT = 1000
 export const AGREGORE_TYPE = 'agregore'
 export const DAEMON_TYPE = 'daemon'
@@ -483,7 +483,7 @@ export async function detectAgregoreFetch (fetch = globalThis.fetch) {
   }
 }
 
-export async function detectDaemon (url, timeout = 1000, fetch = globalThis.fetch) {
+export async function detectDaemon (url = DEFAULT_DAEMON_API_URL, timeout = 1000, fetch = globalThis.fetch) {
   try {
     const controller = new AbortController()
     const { signal } = controller
