@@ -422,7 +422,13 @@ export class DaemonAPI extends API {
 }
 
 export let hasInterceptedWebRequests = false
-export const shouldInterceptWebRequests = !!(globalThis?.chrome?.webRequest?.onBeforeSendHeaders?.addListener)
+export const shouldInterceptWebRequests = !!(
+  globalThis &&
+  globalThis.chrome &&
+  globalThis.chrome.webRequest &&
+  globalThis.chrome.webRequest.onBeforeSendHeaders &&
+  globalThis.chrome.webRequest.onBeforeSendHeaders.addListener
+)
 
 export async function detectBraveDaemon () {
   if (typeof navigator === 'undefined') return false
