@@ -7,7 +7,7 @@
     "test": "node test.js",
     "lint": "standard --fix",
     "build": "rollup --format cjs ./index.js > index.cjs",
-    "prepublish": "npm run build"
+    "prepare": "npm run build"
   },
   "exports": {
     ".": {
