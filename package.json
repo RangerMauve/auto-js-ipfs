@@ -1,6 +1,6 @@
 {
   "name": "auto-js-ipfs",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "description": "Automatically get some IPFS download/upload/pinning functionality based on your environment.",
   "type": "module",
   "scripts": {
