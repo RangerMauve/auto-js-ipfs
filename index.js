@@ -20,6 +20,12 @@ export {
   W3S_LINK_URL
 } from './util.js'
 
+let debug = false
+
+export function setDebug (shouldDebug = true) {
+  debug = shouldDebug
+}
+
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
 export const WEB3_STORAGE_URL = 'https://api.web3.storage/'
 export const ESTUARY_URL = 'https://api.estuary.tech/'
@@ -358,6 +364,30 @@ export class DaemonAPI extends API {
   }
 
   async getSize (url, signal = null) {
+    try {
+      const { cid, path, type } = parseIPFSURL(url)
+      const relative = `/api/v0/file/ls?arg=/${type}/${cid}${path}&size=true`
+      const toFetch = new URL(relative, this.url)
+
+      const response = await fetch(toFetch, {
+        method: 'POST',
+        signal
+      })
+
+      await checkError(response)
+
+      const { Objects } = await response.json()
+
+      const [{ Size }] = Object.values(Objects)
+
+      return Size
+    } catch (e) {
+      if (debug) console.warn(e)
+      return this._getSizeWithDag(url, signal)
+    }
+  }
+
+  async _getSizeWithDag (url, signal = null) {
     const { cid, path, type } = parseIPFSURL(url)
     const relative = `/api/v0/dag/stat?arg=/${type}/${cid}${path}`
     const toFetch = new URL(relative, this.url)
@@ -482,7 +512,7 @@ export async function detectAgregoreFetch (fetch = globalThis.fetch) {
     await fetch('ipfs://localhost/')
     return true
   } catch (e) {
-    console.error('Unable to detect Agregore', e)
+    if (debug) console.warn('Unable to detect Agregore', e)
     return false
   }
 }
@@ -499,7 +529,7 @@ export async function detectDaemon (url = DEFAULT_DAEMON_API_URL, timeout = 1000
     if (response.status === 405) return true
     return false
   } catch (e) {
-    console.error('Unable to detect Kubo Daemon', e, url)
+    if (debug) console.warn('Unable to detect Kubo Daemon', e, url)
     return false
   }
 }
