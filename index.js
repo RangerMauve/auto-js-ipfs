@@ -359,7 +359,7 @@ export class DaemonAPI extends API {
 
   async getSize (url, signal = null) {
     const { cid, path, type } = parseIPFSURL(url)
-    const relative = `/api/v0/file/ls?arg=/${type}/${cid}${path}&size=true`
+    const relative = `/api/v0/dag/stat?arg=/${type}/${cid}${path}`
     const toFetch = new URL(relative, this.url)
 
     const response = await fetch(toFetch, {
@@ -369,11 +369,9 @@ export class DaemonAPI extends API {
 
     await checkError(response)
 
-    const { Objects } = await response.json()
+    const { Size } = await response.json()
 
-    const [{ Size }] = Object.values(Objects)
-
-    return Size
+    return parseInt(Size, 10)
   }
 
   async uploadCAR (carFileIterator, signal = null) {
@@ -397,7 +395,7 @@ export class DaemonAPI extends API {
   }
 
   async uploadFile (fileIterator, fileName = '', signal = null) {
-    const relative = '/api/v0/add?cid-version=1&inline=false&raw-leaves=false'
+    const relative = '/api/v0/add?cid-version=1&inline=false&raw-leaves=true'
     const toFetch = new URL(relative, this.url)
 
     const isFile = fileIterator.name && fileIterator instanceof Blob
