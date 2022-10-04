@@ -17,6 +17,7 @@ import {
 
 export {
   detectDefaultGateway,
+  toGatewayURL,
   W3S_LINK_URL
 } from './util.js'
 
