@@ -214,6 +214,15 @@ export async function * getFromURL ({
   yield * streamToIterator(response.body)
 }
 
+export function toGatewayURL (url, gatewayBaseURL = detectDefaultGateway()) {
+  const { cid, path, type } = parseIPFSURL(url)
+
+  const relative = `/${type}/${cid}${path}`
+  const toFetch = new URL(relative, gatewayBaseURL)
+
+  return toFetch
+}
+
 export async function * getFromGateway ({
   url,
   start,
@@ -221,10 +230,7 @@ export async function * getFromGateway ({
   signal,
   gatewayURL = detectDefaultGateway()
 }) {
-  const { cid, path, type } = parseIPFSURL(url)
-
-  const relative = `/${type}/${cid}${path}`
-  const toFetch = new URL(relative, gatewayURL)
+  const toFetch = toGatewayURL(url, gatewayURL)
 
   yield * getFromURL({
     url: toFetch,
