@@ -156,16 +156,16 @@ export function isIterator (content) {
 export function addAuthorizationHeader (url, headers) {
   if (url.password) {
     if (url.username) {
-      const encoded = btoa(`${url.username}:${url.password}`)
+      const encoded = btoa(`${unescape(url.username)}:${unescape(url.password)}`)
       const auth = `Basic ${encoded}`
-      headers.append('Authorization', auth)
+      headers.append('Authorization', unescape(auth))
       url.username = ''
       url.password = ''
     } else {
       // If we just have a password, it's for a bearer token
       const token = url.password
       const auth = `Bearer ${token}`
-      headers.append('Authorization', auth)
+      headers.append('Authorization', unescape(auth))
       url.password = ''
     }
   }
