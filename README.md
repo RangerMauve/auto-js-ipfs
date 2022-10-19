@@ -51,9 +51,11 @@ Initialize the API based on the choice selected from `detect()`
 
 Create an API instance by auto-detecting the "best" option available.
 
-### `api.get(url, {start, end, signal}) => AsyncIterator<ArrayBuffer>`
+### `api.get(url, {start, end, format, signal}) => AsyncIterator<ArrayBuffer>`
 
 Get data from an `ipfs://` URL, can optionally chose a start and end offset for loading data.
+
+You can also optionally supply the format you want to load the data in. Valid formats are `raw` for getting raw Blocks from IPFS, and `car` for downloading a whole tree as a CAR (Content ARchive) file.
 
 ### `api.getSize(url, signal) => Promise<Number>`
 

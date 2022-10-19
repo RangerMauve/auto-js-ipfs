@@ -46,7 +46,7 @@ export const CHOOSE_ORDER = [
 ]
 
 export class API {
-  async * get (url, { start, end, signal = null } = {}) {
+  async * get (url, { start, end, signal = null, format = null } = {}) {
     throw new Error('Not Implemented')
   }
 
@@ -177,11 +177,12 @@ export class ReadonlyGatewayAPI extends API {
     this.gatewayURL = gatewayURL
   }
 
-  async * get (url, { start, end, signal = null } = {}) {
+  async * get (url, { start, end, signal = null, format = null } = {}) {
     yield * getFromGateway({
       url,
       start,
       end,
+      format,
       gatewayURL: this.gatewayURL,
       signal
     })
@@ -235,12 +236,13 @@ export class AgregoreAPI extends API {
     this.fetch = fetch
   }
 
-  async * get (url, { start, end, signal = null } = {}) {
+  async * get (url, { start, end, signal = null, format = null } = {}) {
     const { fetch } = this
     yield * getFromURL({
       url,
       start,
       end,
+      format,
       fetch,
       signal
     })
@@ -342,7 +344,7 @@ export class DaemonAPI extends API {
     this.url = url
   }
 
-  async * get (url, { start, end, signal = null } = {}) {
+  async * get (url, { start, end, signal = null, format = null } = {}) {
     const { cid, path, type } = parseIPFSURL(url)
     const relative = `/api/v0/cat?arg=/${type}/${cid}${path}`
     const toFetch = new URL(relative, this.url)
@@ -352,6 +354,10 @@ export class DaemonAPI extends API {
     }
     if (end) {
       toFetch.searchParams.set('length', (start || 0) + end)
+    }
+
+    if (format) {
+      throw new Error('Format is unsupported on Kubo Daemons for now')
     }
 
     const response = await fetch(toFetch, {

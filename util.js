@@ -2,6 +2,7 @@
 
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
 export const W3S_LINK_URL = 'https://w3s.link/'
+export const DEFAULT_GATEWAY = 'https://gateway.ipfs.io/'
 
 export function parseIPFSURL (url) {
   const { hostname, protocol, pathname } = new URL(url)
@@ -192,6 +193,7 @@ export async function * getFromURL ({
   url,
   start,
   end,
+  format,
   signal,
   fetch = globalThis.fetch
 }) {
@@ -204,7 +206,13 @@ export async function * getFromURL ({
     }
   }
 
-  const response = await fetch(url, {
+  const toFetch = new URL(url)
+
+  if (format) {
+    toFetch.searchParams.set('format', format)
+  }
+
+  const response = await fetch(toFetch.href, {
     headers,
     signal
   })
@@ -227,21 +235,23 @@ export async function * getFromGateway ({
   url,
   start,
   end,
+  format,
   signal,
   gatewayURL = detectDefaultGateway()
 }) {
-  const toFetch = toGatewayURL(url, gatewayURL)
+  const toFetch = toGatewayURL(url, gatewayURL, format)
 
   yield * getFromURL({
     url: toFetch,
     start,
     end,
+    format,
     signal
   })
 }
 
 export function detectDefaultGateway () {
-  if (!globalThis.location) return W3S_LINK_URL
+  if (!globalThis.location) return DEFAULT_GATEWAY
   const { pathname, hostname, protocol } = globalThis.location
   const isOnGatewayPath = pathname.startsWith('/ipfs/') || pathname.startsWith('/ipns/')
 
@@ -258,5 +268,5 @@ export function detectDefaultGateway () {
     return `${protocol}//${segments.join('.')}/`
   }
 
-  return W3S_LINK_URL
+  return DEFAULT_GATEWAY
 }

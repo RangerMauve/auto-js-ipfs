@@ -72,6 +72,10 @@ test('Upload CAR to Agregore', async (t) => {
 
       t.pass('Able to upload CAR')
       t.deepEqual(roots, [EXAMPLE_URL], 'Got expected roots from CAR')
+
+      const carLoaded = await collect(api.get(EXAMPLE_URL, { format: 'car' }))
+
+      t.deepEqual(carLoaded, EXAMPLE_CAR, 'Got car back out')
     }
   } finally {
     await ipfsd.stop()
@@ -103,6 +107,10 @@ test('Upload CAR to web3.storage', async (t) => {
 
     t.pass('Able to upload CAR')
     t.deepEqual(roots, [EXAMPLE_URL], 'Got expected roots from CAR')
+
+    const carLoaded = await collect(api.get(EXAMPLE_URL, { format: 'car' }))
+
+    t.deepEqual(carLoaded, EXAMPLE_CAR, 'Got car back out')
   }
 })
 
