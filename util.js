@@ -2,7 +2,7 @@
 
 export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
 export const W3S_LINK_URL = 'https://w3s.link/'
-export const DEFAULT_GATEWAY = 'https://gateway.ipfs.io/'
+export const DEFAULT_GATEWAY = W3S_LINK_URL
 
 export function parseIPFSURL (url) {
   const { hostname, protocol, pathname } = new URL(url)
@@ -66,6 +66,7 @@ export function iteratorToStream (iterable) {
   if (!iterator.next) {
     iterator = iterable[Symbol.asyncIterator]()
   }
+  const encoder = new TextEncoder()
   return new ReadableStream({
     async pull (controller) {
       const { value, done } = await iterator.next()
@@ -73,7 +74,11 @@ export function iteratorToStream (iterable) {
       if (done) {
         await controller.close()
       } else {
-        await controller.enqueue(value)
+        let toSend = value
+        if (typeof toSend === 'string') {
+          toSend = encoder.encode(toSend)
+        }
+        await controller.enqueue(toSend)
       }
     }
   })
@@ -209,7 +214,8 @@ export async function * getFromURL ({
   const toFetch = new URL(url)
 
   if (format) {
-    toFetch.searchParams.set('format', format)
+    headers.set('Accept', `application/vnd.ipld.${format}`)
+    headers.set('cache-control', 'no-cache')
   }
 
   const response = await fetch(toFetch.href, {
