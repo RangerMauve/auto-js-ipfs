@@ -469,10 +469,10 @@ export async function detectBraveDaemon () {
   if (typeof navigator === 'undefined') return false
   if (!navigator.brave && !navigator.brave.isBrave()) return false
 
-  const potentialGateways = BRAVE_PORTS.map((port) => `http://localhost:${port}/`)
+  const potentialGateways = BRAVE_PORTS.map((port) => `http://localhost:${port}`)
   try {
     // Search all the potential gateways in paralell and return the first valid one
-    const foundGateway = Promise.any(potentialGateways.map(
+    const foundGateway = await Promise.any(potentialGateways.map(
       (gateway) => detectDaemon(gateway).then((exists) => {
         if (exists) return gateway
         throw new Error('Not found')

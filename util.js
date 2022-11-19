@@ -105,11 +105,14 @@ export async function postRawBody ({
 
   const body = await autoStream(fileIterator)
 
+  const duplex = 'half'
+
   const response = await fetch(url, {
     method: 'POST',
     signal,
     body,
-    headers
+    headers,
+    duplex,
   })
 
   await checkError(response)
@@ -189,7 +192,7 @@ export async function getSizeFromURL ({
 
   await checkError(response)
 
-  const lengthHeader = response.headers.get('Content-Length')
+  const lengthHeader = response.headers.get('x-ipfs-datasize') || response.headers.get('Content-Length')
 
   return parseInt(lengthHeader, 10)
 }
