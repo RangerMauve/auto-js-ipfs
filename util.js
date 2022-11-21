@@ -27,6 +27,8 @@ export async function autoBlob (content) {
     const stream = iteratorToStream(content)
     const blob = await streamToBlob(stream)
     return blob
+  } else if (content instanceof Blob) {
+    return content
   } else {
     return new Blob([content])
   }
