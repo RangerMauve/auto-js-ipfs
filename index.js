@@ -450,6 +450,10 @@ export class DaemonAPI extends API {
     await checkError(response)
   }
 
+  async clear(url, signal = null) {
+    return this._unpin(url, signal)
+  }
+
   async uploadCAR (carFileIterator, signal = null) {
     const relative = '/api/v0/dag/import?allow-big-block=true&pin-roots=true'
     const toFetch = new URL(relative, this.url)
@@ -471,7 +475,7 @@ export class DaemonAPI extends API {
   }
 
   async uploadFile (fileIterator, fileName = '', signal = null) {
-    const relative = '/api/v0/add?cid-version=1&inline=false&raw-leaves=true&pin=true'
+    const relative = '/api/v0/add?pin=true&cid-version=1&inline=false&raw-leaves=true'
     const toFetch = new URL(relative, this.url)
 
     const isFile = fileIterator.name && fileIterator instanceof Blob
@@ -491,7 +495,12 @@ export class DaemonAPI extends API {
     const [line] = contents.split('\n')
 
     const { Hash: cid } = JSON.parse(line)
-    return `ipfs://${cid}/`
+
+    const url = `ipfs://${cid}/`
+
+    await this._pin(url, signal)
+
+    return url
   }
 }
 
