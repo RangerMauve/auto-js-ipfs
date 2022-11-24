@@ -68,3 +68,8 @@ Upload a CAR file. Returns an array of root `ipfs://` URLs
 ### `api.uploadFile(fileAsyncIterator, fileName?, signal) => Promise<url>`
 
 Upload a file to the backend and get back a URL. Optionally specify a file name so that it will be wrapped in a folder.
+
+### `api.clear(url, signal?) => Promise`
+
+Clear a URL that was previously downloaded and it's child nodes.
+This works by unpinning data when in kubo, removing it from the list in web3.storage, or deleting it from cache in Agregore.

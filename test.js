@@ -147,6 +147,10 @@ test('Upload file to Kubo daemon', async (t) => {
       const loaded = await collect(api.get(url))
 
       t.deepEqual(loaded.toString('utf8'), EXAMPLE_DATA, 'Got expected data from uploaded URL')
+
+      await api.clear(url)
+
+      t.pass('Able to clear uploaded URL')
     }
   } finally {
     await ipfsd.stop()
@@ -163,6 +167,10 @@ test('Upload CAR to Kubo Daemon', async (t) => {
 
       t.pass('Able to upload CAR')
       t.deepEqual(roots, [EXAMPLE_URL], 'Got expected roots from CAR')
+
+      await api.clear(EXAMPLE_URL)
+
+      t.pass('Able to clear uploaded URL')
     }
   } finally {
     await ipfsd.stop()

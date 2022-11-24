@@ -37,6 +37,7 @@ export const DAEMON_TYPE = 'daemon'
 export const WEB3_STORAGE_TYPE = 'web3.storage'
 export const ESTUARY_TYPE = 'estuary'
 export const READONLY_TYPE = 'readonly'
+export const INVALID_TYPE = 'invalid'
 export const CHOOSE_ORDER = [
   AGREGORE_TYPE,
   DAEMON_TYPE,
@@ -46,6 +47,10 @@ export const CHOOSE_ORDER = [
 ]
 
 export class API {
+  get type () {
+    return INVALID_TYPE
+  }
+
   async * get (url, { start, end, signal = null, format = null } = {}) {
     throw new Error('Not Implemented')
   }
@@ -61,18 +66,8 @@ export class API {
   async uploadFile (carFileIterator, fileName, signal = null) {
     throw new Error('Not Implemented')
   }
-}
 
-export class Pins {
-  async list () {
-    throw new Error('Not Implemented')
-  }
-
-  async add (url, { name, meta } = {}) {
-    throw new Error('Not Implemented')
-  }
-
-  async remove (id) {
+  async clear (url, signal = null) {
     throw new Error('Not Implemented')
   }
 }
@@ -166,15 +161,17 @@ export async function choose (option) {
     throw new TypeError(`Unknown API type: ${type}.`)
   }
 
-  const pins = new Pins()
-
-  return { api, pins }
+  return api
 }
 
 export class ReadonlyGatewayAPI extends API {
   constructor (gatewayURL = detectDefaultGateway()) {
     super()
     this.gatewayURL = gatewayURL
+  }
+
+  get type () {
+    return READONLY_TYPE
   }
 
   async * get (url, { start, end, signal = null, format = null } = {}) {
@@ -208,6 +205,10 @@ export class EstuaryAPI extends ReadonlyGatewayAPI {
     this.url = url
   }
 
+  get type () {
+    return ESTUARY_TYPE
+  }
+
   async uploadCAR (carFileIterator, signal = null) {
     throw new Error('Not Implemented')
   }
@@ -234,6 +235,10 @@ export class AgregoreAPI extends API {
   constructor (fetch = globalThis.fetch) {
     super()
     this.fetch = fetch
+  }
+
+  get type () {
+    return AGREGORE_TYPE
   }
 
   async * get (url, { start, end, signal = null, format = null } = {}) {
@@ -302,6 +307,10 @@ export class Web3StorageAPI extends ReadonlyGatewayAPI {
     this.url = url
   }
 
+  get type () {
+    return WEB3_STORAGE_TYPE
+  }
+
   async uploadCAR (carFileIterator, signal = null) {
     const toFetch = new URL('/car', this.url)
     toFetch.password = this.authorization
@@ -342,6 +351,10 @@ export class DaemonAPI extends API {
   constructor (url = DEFAULT_DAEMON_API_URL) {
     super()
     this.url = url
+  }
+
+  get type () {
+    return DAEMON_TYPE
   }
 
   async * get (url, { start, end, signal = null, format = null } = {}) {
@@ -411,6 +424,36 @@ export class DaemonAPI extends API {
     return parseInt(Size, 10)
   }
 
+  async _pin (url, signal = null) {
+    const { cid, path, type } = parseIPFSURL(url)
+    const relative = `/api/v0/pin/add?arg=/${type}/${cid}${path}`
+    const toFetch = new URL(relative, this.url)
+
+    const response = await fetch(toFetch, {
+      method: 'POST',
+      signal
+    })
+
+    await checkError(response)
+  }
+
+  async _unpin (url, signal = null) {
+    const { cid, path, type } = parseIPFSURL(url)
+    const relative = `/api/v0/pin/rm?arg=/${type}/${cid}${path}`
+    const toFetch = new URL(relative, this.url)
+
+    const response = await fetch(toFetch, {
+      method: 'POST',
+      signal
+    })
+
+    await checkError(response)
+  }
+
+  async clear(url, signal = null) {
+    return this._unpin(url, signal)
+  }
+
   async uploadCAR (carFileIterator, signal = null) {
     const relative = '/api/v0/dag/import?allow-big-block=true&pin-roots=true'
     const toFetch = new URL(relative, this.url)
@@ -432,7 +475,7 @@ export class DaemonAPI extends API {
   }
 
   async uploadFile (fileIterator, fileName = '', signal = null) {
-    const relative = '/api/v0/add?cid-version=1&inline=false&raw-leaves=true'
+    const relative = '/api/v0/add?pin=true&cid-version=1&inline=false&raw-leaves=true'
     const toFetch = new URL(relative, this.url)
 
     const isFile = fileIterator.name && fileIterator instanceof Blob
@@ -452,7 +495,12 @@ export class DaemonAPI extends API {
     const [line] = contents.split('\n')
 
     const { Hash: cid } = JSON.parse(line)
-    return `ipfs://${cid}/`
+
+    const url = `ipfs://${cid}/`
+
+    await this._pin(url, signal)
+
+    return url
   }
 }
 
