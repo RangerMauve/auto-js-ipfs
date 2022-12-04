@@ -27,7 +27,7 @@ export function setDebug (shouldDebug = true) {
   debug = shouldDebug
 }
 
-export const BRAVE_PORTS = [45001, 45002, 45003, 45004, 45005]
+export const KNOWN_DAEMON_PORTS = [5001, 45001, 45002, 45003, 45004, 45005]
 export const WEB3_STORAGE_URL = 'https://api.web3.storage/'
 export const ESTUARY_URL = 'https://api.estuary.tech/'
 export const DEFAULT_DAEMON_API_URL = 'http://localhost:5001/'
@@ -73,7 +73,7 @@ export class API {
 }
 
 export async function detect ({
-  daemonURL = DEFAULT_DAEMON_API_URL,
+  daemonURL,
   web3StorageToken,
   web3StorageURL = WEB3_STORAGE_URL,
   estuaryToken,
@@ -93,7 +93,7 @@ export async function detect ({
   )
 
   toAttempt.push(
-    detectBraveDaemon(fetch)
+    detectAllDaemons(fetch)
       .then(detected => detected && options.push({ type: DAEMON_TYPE, url: detected, fetch }))
   )
 
@@ -513,13 +513,10 @@ export const shouldInterceptWebRequests = !!(
   globalThis.chrome.webRequest.onBeforeSendHeaders.addListener
 )
 
-export async function detectBraveDaemon () {
-  if (typeof navigator === 'undefined') return false
-  if (!navigator.brave && !navigator.brave.isBrave()) return false
-
-  const potentialGateways = BRAVE_PORTS.map((port) => `http://localhost:${port}`)
+export async function detectAllDaemons () {
+  const potentialGateways = KNOWN_DAEMON_PORTS.map((port) => `http://localhost:${port}`)
   try {
-    // Search all the potential gateways in paralell and return the first valid one
+    // Search all the potential gateways in parallel and return the first valid one
     const foundGateway = await Promise.any(potentialGateways.map(
       (gateway) => detectDaemon(gateway).then((exists) => {
         if (exists) return gateway
@@ -578,7 +575,7 @@ export async function detectDaemon (url = DEFAULT_DAEMON_API_URL, timeout = 1000
     const { signal } = controller
     setTimeout(() => controller.abort(), timeout)
     const response = await fetch(new URL('/api/v0/version', url), {
-      signal
+      method: 'POST', signal
     })
     if (response.ok) return true
     if (response.status === 405) return true
