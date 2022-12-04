@@ -366,7 +366,7 @@ export class DaemonAPI extends API {
       toFetch.searchParams.set('offset', start)
     }
     if (end) {
-      toFetch.searchParams.set('length', (start || 0) + end)
+      toFetch.searchParams.set('length', end - (start || 0) + 1)
     }
 
     if (format) {
