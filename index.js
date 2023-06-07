@@ -578,7 +578,7 @@ export async function detectDaemon (url = DEFAULT_DAEMON_API_URL, timeout = 1000
       method: 'POST', signal
     })
     if (response.ok) return true
-    if (response.status === 405) return true
+    if(response.status && response.status !== 404) return true
     return false
   } catch (e) {
     if (debug) console.warn('Unable to detect Kubo Daemon', e, url)
