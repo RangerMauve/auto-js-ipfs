@@ -114,7 +114,7 @@ export async function postRawBody ({
     signal,
     body,
     headers,
-    duplex,
+    duplex
   })
 
   await checkError(response)

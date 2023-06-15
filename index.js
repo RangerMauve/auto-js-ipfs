@@ -34,11 +34,13 @@ export const DEFAULT_DAEMON_API_URL = 'http://localhost:5001/'
 export const DEFAULT_TIMEOUT = 1000
 export const AGREGORE_TYPE = 'agregore'
 export const DAEMON_TYPE = 'daemon'
+export const PREFERRED_DAEMON_TYPE = 'daemon:preferred'
 export const WEB3_STORAGE_TYPE = 'web3.storage'
 export const ESTUARY_TYPE = 'estuary'
 export const READONLY_TYPE = 'readonly'
 export const INVALID_TYPE = 'invalid'
 export const CHOOSE_ORDER = [
+  PREFERRED_DAEMON_TYPE,
   AGREGORE_TYPE,
   DAEMON_TYPE,
   WEB3_STORAGE_TYPE,
@@ -100,7 +102,7 @@ export async function detect ({
   if (daemonURL) {
     toAttempt.push(
       detectDaemon(daemonURL, timeout, fetch)
-        .then(detected => detected && options.push({ type: DAEMON_TYPE, url: daemonURL, fetch }))
+        .then(detected => detected && options.push({ type: PREFERRED_DAEMON_TYPE, url: daemonURL, fetch }))
     )
   }
 
@@ -149,7 +151,7 @@ export async function choose (option) {
   let api = null
   if (type === AGREGORE_TYPE) {
     api = new AgregoreAPI(option.fetch || globalThis.fetch)
-  } else if (type === DAEMON_TYPE) {
+  } else if (type.startsWith(DAEMON_TYPE)) {
     api = new DaemonAPI(option.url)
   } else if (type === WEB3_STORAGE_TYPE) {
     api = new Web3StorageAPI(option.authorization, option.url, option.publicGatewayURL)
@@ -450,7 +452,7 @@ export class DaemonAPI extends API {
     await checkError(response)
   }
 
-  async clear(url, signal = null) {
+  async clear (url, signal = null) {
     return this._unpin(url, signal)
   }
 
@@ -578,7 +580,7 @@ export async function detectDaemon (url = DEFAULT_DAEMON_API_URL, timeout = 1000
       method: 'POST', signal
     })
     if (response.ok) return true
-    if(response.status && response.status !== 404) return true
+    if (response.status && response.status !== 404) return true
     return false
   } catch (e) {
     if (debug) console.warn('Unable to detect Kubo Daemon', e, url)
