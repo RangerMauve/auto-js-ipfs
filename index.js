@@ -359,7 +359,7 @@ export class DaemonAPI extends API {
     return DAEMON_TYPE
   }
 
-  async * get (url, { start, end, signal = null, format = null } = {}) {
+  async * getFile (url, { start, end, signal = null, format = null } = {}) {
     const { cid, path, type } = parseIPFSURL(url)
     const relative = `/api/v0/cat?arg=/${type}/${cid}${path}`
     const toFetch = new URL(relative, this.url)
@@ -383,6 +383,49 @@ export class DaemonAPI extends API {
     await checkError(response)
 
     yield * streamToIterator(response.body)
+  }
+
+  async * getRaw (url, { signal = null } = {}) {
+    const { cid, path, type } = parseIPFSURL(url)
+    const relative = `/api/v0/block/get?arg=/${type}/${cid}${path}`
+    const toFetch = new URL(relative, this.url)
+
+    const response = await fetch(toFetch, {
+      method: 'POST',
+      signal
+    })
+
+    await checkError(response)
+
+    yield * streamToIterator(response.body)
+  }
+
+  async * getCar (url, { signal = null } = {}) {
+    const { cid, path, type } = parseIPFSURL(url)
+    const relative = `/api/v0/dag/export?arg=/${type}/${cid}${path}`
+    const toFetch = new URL(relative, this.url)
+
+    const response = await fetch(toFetch, {
+      method: 'POST',
+      signal
+    })
+
+    await checkError(response)
+
+    yield * streamToIterator(response.body)
+  }
+
+  async * get (url, { start, end, signal = null, format = null } = {}) {
+    if (format) {
+      if (format === 'raw') {
+        yield * this.getRaw(url, { start, end, signal })
+      } else if (format === 'car') {
+        yield * this.getCar(url, { start, end, signal })
+      } else {
+        throw new Error(`Invalid format type, must be car or 'raw', got ${format}`)
+      }
+    }
+    yield * this.getFile(url, { start, end, signal })
   }
 
   async getSize (url, signal = null) {
